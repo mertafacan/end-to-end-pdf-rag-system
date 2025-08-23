@@ -143,8 +143,8 @@ docker-compose up -d
 **with uv:**
 
 ```bash
-uv run uvicorn src.api:app --port 8000 --reload
-uv run streamlit run src/app.py
+cd src && uv run uvicorn api:app --port 8000 --reload
+cd src && uv run streamlit run app.py
 ```
 
 ### Available Services
