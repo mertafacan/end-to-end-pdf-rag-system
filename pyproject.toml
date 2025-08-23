@@ -1,0 +1,42 @@
+[project]
+name = "pdf-rag-assistant"
+version = "0.1.0"
+description = "PDF RAG Assistant with Streamlit"
+dependencies = [
+    "streamlit",
+    "langchain",
+    "langchain-community",
+    "langchain-text-splitters",
+    "langchain-google-genai==2.1.7",
+    "qdrant-client",
+    "python-dotenv",
+    "langgraph>=0.6.5",
+    "langchain-openai>=0.3.30",
+    "pypdf>=6.0.0",
+    "fastapi>=0.116.1",
+    "uvicorn>=0.35.0",
+    "python-multipart>=0.0.20",
+    "sentence-transformers>=5.1.0",
+    "flashrank>=0.2.10",
+    "prometheus-fastapi-instrumentator>=7.1.0",
+    "prometheus-client>=0.22.1",
+    "langchain-qdrant>=0.2.0",
+    "litellm>=1.75.8",
+    "langchain-litellm>=0.2.2",
+    "datasets>=2.16.0",
+    "python-logging-loki>=0.3.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = [
+    "pytest",
+    "black",
+    "flake8",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]

@@ -1,0 +1,156 @@
+groups:
+- name: app-slo-rules
+  rules:
+  - record: job:http_requests:rate5m
+    expr: sum(rate(http_requests_total{job="fastapi-app", route!~"/(metrics|health)"}[5m])) by (job)
+
+  - record: job:http_requests_errors:rate5m
+    expr: sum(rate(http_requests_total{job="fastapi-app", status=~"5..", route!~"/(metrics|health)"}[5m])) by (job)
+
+  - record: job:http_error_ratio5m
+    expr: job:http_requests_errors:rate5m / job:http_requests:rate5m
+
+  - record: job:http_latency_p95:5m
+    expr: |
+      histogram_quantile(
+        0.95,
+        sum by (le) (
+          rate(http_request_duration_seconds_bucket{job="fastapi-app", route!~"/(metrics|health)"}[5m])
+        )
+      )
+
+  - alert: FastAPIHighLatencyP95
+    expr: job:http_latency_p95:5m > 1
+    for: 10m
+    labels:
+      severity: warning
+      service: fastapi
+    annotations:
+      summary: "FastAPI p95 latency is high"
+      description: "p95 > 1s (10min). Keep the route label as 'route', use route instead of path."
+
+  - alert: FastAPIHighErrorRatio
+    expr: job:http_error_ratio5m > 0.10
+    for: 5m
+    labels:
+      severity: critical
+      service: fastapi
+    annotations:
+      summary: "FastAPI error rate is high"
+      description: "5xx / all requests > 10% (5min)."
+
+  - alert: FastAPINoTraffic
+    expr: job:http_requests:rate5m < 0.1
+    for: 10m
+    labels:
+      severity: warning
+      service: fastapi
+    annotations:
+      summary: "Sudden drop in traffic"
+      description: "Request rate is lower than expected. Could be deployment/incident."
+
+  - record: job:http_error_ratio1h
+    expr: sum(rate(http_requests_total{job="fastapi-app",status=~"5.."}[1h])) / sum(rate(http_requests_total{job="fastapi-app"}[1h]))
+  - record: job:http_error_ratio5m_global
+    expr: sum(rate(http_requests_total{job="fastapi-app",status=~"5.."}[5m])) / sum(rate(http_requests_total{job="fastapi-app"}[5m]))
+
+  - alert: APIAvailabilityBudgetBurn
+    expr: (job:http_error_ratio1h > 0.01 * 6) OR (job:http_error_ratio5m_global > 0.01 * 14.4)
+    for: 0m
+    labels:
+      severity: critical
+      slo: "api-availability-99"
+    annotations:
+      summary: "SLO error budget is burning fast"
+      description: "High burn rate in short/long window. Investigate the incident."
+
+- name: qdrant-and-infra
+  rules:
+  - alert: QdrantDown
+    expr: up{job="qdrant"} == 0
+    for: 2m
+    labels:
+      severity: critical
+      service: qdrant
+    annotations:
+      summary: "Qdrant is down"
+      description: "Qdrant target is not responding."
+
+  - alert: QdrantTargetMissing
+    expr: absent(up{job="qdrant"})
+    for: 0m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Qdrant target missing"
+      description: "Prometheus cannot scrape at all (service discovery/endpoint issue)."
+
+  - record: qdrant:search_latency_p95:5m
+    expr: |
+      histogram_quantile(
+        0.95,
+        sum by (le) (
+          rate(qdrant_request_duration_seconds_bucket{job="qdrant", operation=~"search|query"}[5m])
+        )
+      )
+  - alert: QdrantHighSearchLatency
+    expr: qdrant:search_latency_p95:5m > 0.3
+    for: 10m
+    labels:
+      severity: warning
+      service: qdrant
+    annotations:
+      summary: "Qdrant p95 search latency is high"
+      description: "p95 > 300ms (10min). Check HNSW parameters, replicas/shards, disk IO."
+
+  - alert: QdrantHighErrorRatio
+    expr: |
+      ( sum(rate(qdrant_requests_total{job="qdrant", code=~"5.."}[5m])) /
+        sum(rate(qdrant_requests_total{job="qdrant"}[5m])) ) > 0.05
+    for: 5m
+    labels:
+      severity: critical
+      service: qdrant
+    annotations:
+      summary: "Qdrant 5xx rate is high"
+      description: "5xx / all Qdrant requests > 5% (5min)."
+
+  - alert: DiskSpaceLow
+    expr: |
+      (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay", mountpoint="/var/lib/qdrant"} /
+       node_filesystem_size_bytes{fstype!~"tmpfs|overlay", mountpoint="/var/lib/qdrant"}) < 0.10
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Disk space is low"
+      description: "Qdrant data disk has less than 10% free space."
+
+  - alert: InstanceDown
+    expr: up == 0
+    for: 2m
+    labels:
+      severity: critical
+    annotations:
+      summary: "{{ $labels.instance }} down"
+      description: "Target up==0."
+
+  - alert: HighCPU
+    expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High CPU"
+      description: "Average CPU usage > 85% (10min)."
+
+  - alert: LowMemory
+    expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) < 0.10
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Low memory"
+      description: "Available memory < 10%."
+
+
