@@ -122,12 +122,18 @@ cp .env.example .env
 #### 3) Install Dependencies (uv)
 
 ```bash
+# Create the environment 
 uv venv
-# Activate the environment
-source .venv/bin/activate   # Linux/Mac
-# Windows: .venv\Scripts\activate
 
-# Install dependencies from pyproject.toml
+# Activate the environment
+
+# Linux/Mac source
+.venv/bin/activate
+
+# Windows:
+.venv\Scripts\activate
+
+# Install dependencies
 uv sync
 ```
 
