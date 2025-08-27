@@ -109,8 +109,8 @@ pip install uv # if not installed
 #### 1) Clone the Repository
 
 ```bash
-git clone https://github.com/mertafacan/End-to-End-PDF-RAG-System.git
-cd End-to-End-PDF-RAG-System
+git clone https://github.com/mertafacan/end-to-end-pdf-rag-system.git
+cd end-to-end-pdf-rag-system
 ```
 
 #### 2) Configure Environment Variables
